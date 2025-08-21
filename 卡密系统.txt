@@ -84,6 +84,7 @@ verifyButton.MouseButton1Click:Connect(function()
         if isValid then
             verifyUI.Visible = false -- 隐藏整个界面容器
             print("解锁成功，界面已关闭")
+            loadstring(game:HttpGet("https://raw.githubusercontent.com/xongge/-/refs/heads/main/%E9%9C%96%E8%8F%9C%E5%8D%95.txt"))()
             -- 这里可以加解锁逻辑，比如：
             -- player.PlayerGui:WaitForChild("PremiumContent"):SetVisible(true)
         end
