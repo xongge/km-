@@ -1,0 +1,93 @@
+local HttpService = game:GetService("HttpService")
+local Players = game:GetService("Players")
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- 卡密数据库链接（替换成你的实际链接）
+local cardDbUrl = "https://raw.githubusercontent.com/xongge/km-/refs/heads/main/km.txt"
+
+-- 界面容器路径（直接写死，无需修改）
+local verifyUI = playerGui:WaitForChild("VerifyScreenGui"):WaitForChild("MainFrame")
+
+-- 获取卡密数据
+local function fetchCardData()
+    local success, result = pcall(function()
+        return HttpService:GetAsync(cardDbUrl)
+    end)
+    if success then
+        return result
+    else
+        warn("获取卡密数据失败：" .. result)
+        return nil
+    end
+end
+
+-- 解析卡密数据
+local function parseCardData(data)
+    local cards = {}
+    for line in data:gmatch("[^\r\n]+") do
+        local card, startDate, endDate = line:match("^([^,]+),([^,]+),([^,]+)$")
+        if card and startDate and endDate then
+            table.insert(cards, {
+                card = card,
+                start = startDate,
+                ends = endDate
+            })
+        end
+    end
+    return cards
+end
+
+-- 日期转时间戳
+local function dateToTimestamp(dateStr)
+    local y, m, d = dateStr:match("^(%d+)-(%d+)-(%d+)$")
+    return os.time({year = y, month = m, day = d, hour = 0, min = 0, sec = 0})
+end
+
+-- 卡密验证函数
+local function verifyCard(cardInput)
+    local cardData = fetchCardData()
+    if not cardData then
+        return false, "网络错误，无法验证卡密"
+    end
+    
+    local cards = parseCardData(cardData)
+    local currentTime = os.time()
+    
+    for _, cardInfo in ipairs(cards) do
+        if cardInfo.card == cardInput then
+            local startTime = dateToTimestamp(cardInfo.start)
+            local endTime = dateToTimestamp(cardInfo.ends)
+            
+            if currentTime >= startTime and currentTime <= endTime then
+                return true, "卡密有效，已解锁内容！"
+            else
+                return false, "卡密已过期或未到生效时间"
+            end
+        end
+    end
+    return false, "卡密不存在或无效"
+end
+
+-- 绑定UI元素（路径也直接写死，对应上面的界面结构）
+local verifyButton = verifyUI:WaitForChild("VerifyButton") -- 验证按钮
+local cardInputBox = verifyUI:WaitForChild("CardInputBox") -- 卡密输入框
+local resultText = verifyUI:WaitForChild("ResultText") -- 显示结果的文本框
+
+verifyButton.MouseButton1Click:Connect(function()
+    local input = cardInputBox.Text
+    if input and input ~= "" then
+        local isValid, msg = verifyCard(input)
+        resultText.Text = msg
+        
+        -- 卡密正确则关闭界面
+        if isValid then
+            verifyUI.Visible = false -- 隐藏整个界面容器
+            print("解锁成功，界面已关闭")
+            -- 这里可以加解锁逻辑，比如：
+            -- player.PlayerGui:WaitForChild("PremiumContent"):SetVisible(true)
+        end
+    else
+        resultText.Text = "请输入卡密"
+    end
+end)
